@@ -1,0 +1,95 @@
+# Minimal core.yaml for the Fabric peer CLI
+# Required by the peer binary even when using it as a CLI tool
+# Full documentation: https://hyperledger-fabric.readthedocs.io/en/release-2.5/
+
+peer:
+    id: cli
+    networkId: sme-cert-network
+    listenAddress: 0.0.0.0:7051
+    address: 0.0.0.0:7051
+    addressAutoDetect: false
+
+    keepalive:
+        minInterval: 60s
+        client:
+            interval: 60s
+            timeout: 20s
+        deliveryClient:
+            interval: 60s
+            timeout: 20s
+
+    gossip:
+        bootstrap: 127.0.0.1:7051
+        useLeaderElection: true
+        orgLeader: false
+        endpoint:
+        maxBlockCountToStore: 10
+        maxPropagationBurstLatency: 10ms
+        maxPropagationBurstSize: 10
+        propagateIterations: 1
+        propagatePeerNum: 3
+        pullInterval: 4s
+        pullPeerNum: 3
+        requestStateInfoInterval: 4s
+        publishStateInfoInterval: 4s
+        stateInfoRetentionInterval:
+        publishCertPeriod: 10s
+        dialTimeout: 3s
+        connTimeout: 2s
+        recvBuffSize: 20
+        sendBuffSize: 200
+
+    tls:
+        enabled: true
+        clientAuthRequired: false
+
+    BCCSP:
+        Default: SW
+        SW:
+            Hash: SHA2
+            Security: 256
+
+    localMspType: bccsp
+    localMspId: SampleOrg
+
+vm:
+    endpoint: unix:///var/run/docker.sock
+
+    docker:
+        tls:
+            enabled: false
+
+chaincode:
+    builder: $(DOCKER_NS)/fabric-ccenv:$(TWO_DIGIT_VERSION)
+    pull: false
+
+    golang:
+        runtime: $(DOCKER_NS)/fabric-baseos:$(TWO_DIGIT_VERSION)
+        dynamicLink: false
+
+    java:
+        runtime: $(DOCKER_NS)/fabric-javaenv:$(TWO_DIGIT_VERSION)
+
+    node:
+        runtime: $(DOCKER_NS)/fabric-nodeenv:$(TWO_DIGIT_VERSION)
+
+    executetimeout: 300s
+    mode: net
+    keepalive: 0
+
+    logging:
+        level: info
+
+ledger:
+    state:
+        stateDatabase: CouchDB
+        couchDBConfig:
+            couchDBAddress: 127.0.0.1:5984
+            username: admin
+            password: adminpw
+
+operations:
+    listenAddress: 127.0.0.1:9443
+
+metrics:
+    provider: prometheus

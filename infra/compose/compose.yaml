@@ -1,0 +1,308 @@
+# SME Certificate Trust Platform - Docker Compose Configuration
+# Complete orchestration for all services
+
+networks:
+  sme_cert_network:
+    name: sme_cert_network
+    driver: bridge
+  fabric_network:
+    name: fabric_network
+    driver: bridge
+    # This network is shared with the Fabric Docker Compose.
+    # It is created here automatically. The Fabric compose references it as external.
+
+volumes:
+  postgres_data:
+  ipfs_data:
+  prometheus_data:
+  grafana_data:
+
+services:
+  # ==========================================================================
+  # PostgreSQL Database
+  # ==========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: sme-cert-postgres
+    environment:
+      POSTGRES_DB: smecertdb
+      POSTGRES_USER: smeuser
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - sme_cert_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-smeuser} -d $${POSTGRES_DB:-smecertdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==========================================================================
+  # IPFS for Off-Chain Storage
+  # ==========================================================================
+  ipfs:
+    image: ipfs/kubo:latest
+    container_name: sme-cert-ipfs
+    environment:
+      - IPFS_PROFILE=server
+    volumes:
+      - ipfs_data:/data/ipfs
+      - ../storage/ipfs/config:/container-init.d:ro
+    ports:
+      - "5001:5001"  # API
+      - "8080:8080"  # Gateway
+      - "4001:4001"  # Swarm
+    networks:
+      - sme_cert_network
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD-SHELL", "ipfs id"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Backend API (NestJS)
+  # ==========================================================================
+  api:
+    build:
+      context: ../..
+      dockerfile: apps/api/Dockerfile
+    container_name: sme-cert-api
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://smeuser:${POSTGRES_PASSWORD}@postgres:5432/smecertdb
+      IPFS_HOST: ipfs
+      IPFS_PORT: 5001
+      FABRIC_CONNECTION_PROFILE_PATH: /app/fabric/profiles/connection-org1.json
+      FABRIC_WALLET_PATH: /app/wallets/org1
+      FABRIC_CHANNEL_NAME: certificates
+      FABRIC_CHAINCODE_NAME: certificate_contract
+      JWT_SECRET: ${JWT_SECRET}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:5173}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
+      OTEL_ENABLED: true
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4318
+      PROMETHEUS_ENABLED: true
+      SMTP_HOST: ${SMTP_HOST:-localhost}
+      SMTP_PORT: ${SMTP_PORT:-25}
+      SMTP_USER: ${SMTP_USER:-noreply@localhost}
+      SMTP_PASS: ${SMTP_PASS:-disabled}
+      CONTACT_TO_EMAIL: ${CONTACT_TO_EMAIL:-ahmeds_hammad@hotmail.com}
+      PLATFORM_NAME: ${PLATFORM_NAME:-SME Certificate Trust Platform}
+      APP_URL: ${APP_URL:-http://localhost}
+    volumes:
+      - ../../blockchain/network/crypto-config:/app/fabric/crypto-config:ro
+      - ../../blockchain/network/connection-profiles:/app/fabric/profiles:ro
+      - ../../wallets:/app/wallets
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ipfs:
+        condition: service_healthy
+    networks:
+      - sme_cert_network
+      - fabric_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Frontend Web Application (React)
+  # ==========================================================================
+  web:
+    build:
+      context: ../..
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_API_URL: /api
+        VITE_PLATFORM_NAME: "SME Certificate Trust Platform"
+    container_name: sme-cert-web
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    networks:
+      - sme_cert_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Nginx Reverse Proxy
+  # ==========================================================================
+  nginx:
+    image: nginx:alpine
+    container_name: sme-cert-nginx
+    volumes:
+      - ../nginx/conf/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ../nginx/conf/default.conf:/etc/nginx/conf.d/default.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - api
+      - web
+    networks:
+      - sme_cert_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+      - CHOWN
+      - SETUID
+      - SETGID
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:80/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Prometheus for Metrics
+  # ==========================================================================
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: sme-cert-prometheus
+    user: "65534:65534"
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      - "9090:9090"
+    networks:
+      - sme_cert_network
+      - fabric_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9090/-/healthy || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # Grafana for Visualization
+  # ==========================================================================
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sme-cert-grafana
+    user: "472:472"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/datasources:/etc/grafana/provisioning/datasources:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - sme_cert_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ==========================================================================
+  # OpenTelemetry Collector (Optional)
+  # ==========================================================================
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: sme-cert-otel
+    command: ["--config=/etc/otel-collector-config.yml"]
+    volumes:
+      - ./otel-collector-config.yml:/etc/otel-collector-config.yml:ro
+    ports:
+      - "4317:4317"  # OTLP gRPC receiver
+      - "4318:4318"  # OTLP HTTP receiver
+      - "8888:8888"  # Prometheus metrics exposed by the collector
+      - "8889:8889"  # Prometheus exporter metrics
+    networks:
+      - sme_cert_network
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL

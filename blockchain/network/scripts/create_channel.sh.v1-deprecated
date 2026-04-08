@@ -1,0 +1,136 @@
+#!/bin/bash
+#
+# Create and join channel for all organizations
+#
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NETWORK_DIR="$(dirname "$SCRIPT_DIR")"
+CHANNEL_NAME=${CHANNEL_NAME:-"certificates"}
+ORDERER_ADDRESS="orderer.example.com:7050"
+ORDERER_CA="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem"
+
+echo "======================================================================"
+echo " Creating and Joining Channel: $CHANNEL_NAME"
+echo "======================================================================"
+
+# Function to set environment for specific peer
+setGlobals() {
+    local ORG=$1
+    local PEER=$2
+
+    if [ "$ORG" == "1" ]; then
+        CORE_PEER_LOCALMSPID="Org1MSP"
+        CORE_PEER_TLS_ROOTCERT_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/peers/peer${PEER}.org1.example.com/tls/ca.crt"
+        CORE_PEER_MSPCONFIGPATH="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org1.example.com/users/Admin@org1.example.com/msp"
+        if [ "$PEER" == "0" ]; then
+            CORE_PEER_ADDRESS="peer0.org1.example.com:7051"
+        else
+            CORE_PEER_ADDRESS="peer1.org1.example.com:8051"
+        fi
+    elif [ "$ORG" == "2" ]; then
+        CORE_PEER_LOCALMSPID="Org2MSP"
+        CORE_PEER_TLS_ROOTCERT_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/peers/peer${PEER}.org2.example.com/tls/ca.crt"
+        CORE_PEER_MSPCONFIGPATH="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org2.example.com/users/Admin@org2.example.com/msp"
+        if [ "$PEER" == "0" ]; then
+            CORE_PEER_ADDRESS="peer0.org2.example.com:9051"
+        else
+            CORE_PEER_ADDRESS="peer1.org2.example.com:10051"
+        fi
+    elif [ "$ORG" == "3" ]; then
+        CORE_PEER_LOCALMSPID="Org3MSP"
+        CORE_PEER_TLS_ROOTCERT_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org3.example.com/peers/peer${PEER}.org3.example.com/tls/ca.crt"
+        CORE_PEER_MSPCONFIGPATH="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org3.example.com/users/Admin@org3.example.com/msp"
+        if [ "$PEER" == "0" ]; then
+            CORE_PEER_ADDRESS="peer0.org3.example.com:11051"
+        else
+            CORE_PEER_ADDRESS="peer1.org3.example.com:12051"
+        fi
+    elif [ "$ORG" == "4" ]; then
+        CORE_PEER_LOCALMSPID="Org4MSP"
+        CORE_PEER_TLS_ROOTCERT_FILE="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org4.example.com/peers/peer${PEER}.org4.example.com/tls/ca.crt"
+        CORE_PEER_MSPCONFIGPATH="/opt/gopath/src/github.com/hyperledger/fabric/peer/crypto/peerOrganizations/org4.example.com/users/Admin@org4.example.com/msp"
+        if [ "$PEER" == "0" ]; then
+            CORE_PEER_ADDRESS="peer0.org4.example.com:13051"
+        else
+            CORE_PEER_ADDRESS="peer1.org4.example.com:14051"
+        fi
+    fi
+
+    export CORE_PEER_LOCALMSPID
+    export CORE_PEER_TLS_ROOTCERT_FILE
+    export CORE_PEER_MSPCONFIGPATH
+    export CORE_PEER_ADDRESS
+}
+
+# Execute commands in CLI container
+executeInCLI() {
+    docker exec cli bash -c "$1"
+}
+
+echo "Step 1: Creating channel..."
+setGlobals 1 0
+CREATE_CHANNEL_CMD="peer channel create -o $ORDERER_ADDRESS -c $CHANNEL_NAME -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.tx --outputBlock /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block --tls --cafile $ORDERER_CA"
+executeInCLI "$CREATE_CHANNEL_CMD"
+
+echo ""
+echo "Step 2: Joining peers to channel..."
+
+# Join Org1 peers
+echo "Joining Org1 Peer0..."
+setGlobals 1 0
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+echo "Joining Org1 Peer1..."
+setGlobals 1 1
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+# Join Org2 peers
+echo "Joining Org2 Peer0..."
+setGlobals 2 0
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+echo "Joining Org2 Peer1..."
+setGlobals 2 1
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+# Join Org3 peers
+echo "Joining Org3 Peer0..."
+setGlobals 3 0
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+echo "Joining Org3 Peer1..."
+setGlobals 3 1
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+# Join Org4 peers
+echo "Joining Org4 Peer0..."
+setGlobals 4 0
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+echo "Joining Org4 Peer1..."
+setGlobals 4 1
+executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel join -b /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/${CHANNEL_NAME}.block"
+
+echo ""
+echo "Step 3: Updating anchor peers..."
+
+# Update anchor peers for each org
+for ORG in 1 2 3 4; do
+    echo "Updating anchor peer for Org${ORG}..."
+    setGlobals $ORG 0
+    executeInCLI "CORE_PEER_LOCALMSPID=$CORE_PEER_LOCALMSPID CORE_PEER_ADDRESS=$CORE_PEER_ADDRESS CORE_PEER_TLS_ROOTCERT_FILE=$CORE_PEER_TLS_ROOTCERT_FILE CORE_PEER_MSPCONFIGPATH=$CORE_PEER_MSPCONFIGPATH peer channel update -o $ORDERER_ADDRESS -c $CHANNEL_NAME -f /opt/gopath/src/github.com/hyperledger/fabric/peer/channel-artifacts/Org${ORG}MSPanchors.tx --tls --cafile $ORDERER_CA"
+done
+
+echo ""
+echo "======================================================================"
+echo " Channel Created and All Peers Joined Successfully"
+echo "======================================================================"
+echo ""
+echo "Channel: $CHANNEL_NAME"
+echo "Organizations: 4 (Org1, Org2, Org3, Org4)"
+echo "Peers per org: 2"
+echo ""
+echo "Next step: Deploy chaincode using ./deploy_chaincode.sh"
+echo ""

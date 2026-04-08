@@ -1,0 +1,69 @@
+{
+  "name": "sme-certificate-platform",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Production-ready blockchain solution for issuing, storing, verifying, and revoking digital certificates for Egyptian SMEs",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-org/sme-certificate-platform"
+  },
+  "author": "SME Certificate Trust Platform Team",
+  "license": "UNLICENSED",
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "storage/encryption"
+  ],
+  "packageManager": "yarn@4.0.2",
+  "engines": {
+    "node": ">=20.0.0",
+    "yarn": ">=4.0.0"
+  },
+  "scripts": {
+    "install:all": "yarn install",
+    "dev:api": "yarn workspace @sme-cert/api dev",
+    "dev:web": "yarn workspace @sme-cert/web dev",
+    "dev": "concurrently \"yarn dev:api\" \"yarn dev:web\"",
+    "build": "yarn workspaces foreach -A run build",
+    "build:api": "yarn workspace @sme-cert/api build",
+    "build:web": "yarn workspace @sme-cert/web build",
+    "test": "yarn workspaces foreach -A run test",
+    "test:unit": "yarn workspaces foreach -A run test:unit",
+    "test:integration": "yarn workspace @sme-cert/api test:integration",
+    "test:e2e": "yarn workspace @sme-cert/web test:e2e",
+    "test:coverage": "yarn workspaces foreach -A run test:coverage",
+    "lint": "yarn workspaces foreach -A run lint",
+    "lint:fix": "yarn workspaces foreach -A run lint:fix",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "typecheck": "yarn workspaces foreach -A run typecheck",
+    "clean": "yarn workspaces foreach -A run clean && rm -rf node_modules",
+    "prepare": "husky install",
+    "bootstrap:local": "./scripts/bootstrap_local.sh",
+    "bootstrap:vm": "sudo ./scripts/bootstrap_vm.sh",
+    "start:all": "./scripts/start_all.sh",
+    "stop:all": "./scripts/stop_all.sh",
+    "reset:all": "./scripts/reset_all.sh",
+    "seed:demo": "./scripts/seed_demo_data.sh",
+    "workload:generate": "./scripts/workload_generator.sh"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.5",
+    "concurrently": "^8.2.2",
+    "eslint": "^8.56.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.4",
+    "typescript": "^5.3.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}

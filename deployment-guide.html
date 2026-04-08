@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SME Certificate Platform — Deployment Guide</title>
+  <style>
+    :root {
+      --navy:   #1a2e4a;
+      --navy2:  #243b55;
+      --gold:   #c8973a;
+      --green:  #2e7d52;
+      --red:    #c0392b;
+      --blue:   #2471a3;
+      --bg:     #f4f6f9;
+      --card:   #ffffff;
+      --text:   #2c3e50;
+      --muted:  #7f8c8d;
+      --border: #dde1e7;
+      --code-bg:#1e2d3d;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, var(--navy) 0%, var(--navy2) 100%);
+      color: #fff;
+      padding: 48px 40px 40px;
+    }
+    header .badge {
+      display: inline-block;
+      background: var(--gold);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 16px;
+    }
+    header h1 { font-size: 2rem; font-weight: 700; margin-bottom: 8px; }
+    header p  { font-size: 1rem; opacity: .75; max-width: 600px; }
+
+    /* ── Nav pills ── */
+    nav {
+      background: var(--navy);
+      padding: 0 40px;
+      display: flex;
+      gap: 4px;
+      overflow-x: auto;
+      border-bottom: 2px solid var(--gold);
+    }
+    nav a {
+      color: rgba(255,255,255,.65);
+      text-decoration: none;
+      font-size: .8rem;
+      font-weight: 600;
+      padding: 12px 16px;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      transition: color .2s, border-color .2s;
+    }
+    nav a:hover { color: #fff; border-color: var(--gold); }
+
+    /* ── Layout ── */
+    .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+    /* ── Section ── */
+    section { margin-bottom: 56px; }
+    section > .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 14px;
+      border-bottom: 2px solid var(--border);
+    }
+    .section-number {
+      width: 40px; height: 40px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .95rem; font-weight: 700;
+      flex-shrink: 0;
+    }
+    section h2 { font-size: 1.35rem; font-weight: 700; color: var(--navy); }
+    section .subtitle { font-size: .85rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .card h3 {
+      font-size: .95rem;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card h3 .tag {
+      font-size: .7rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 10px;
+      background: var(--navy);
+      color: #fff;
+    }
+    .card h3 .tag.all  { background: var(--blue); }
+    .card h3 .tag.vm1  { background: var(--green); }
+    .card h3 .tag.warn { background: var(--gold); }
+
+    /* ── Code blocks ── */
+    pre {
+      background: var(--code-bg);
+      color: #e8f0fe;
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: .82rem;
+      line-height: 1.65;
+      overflow-x: auto;
+      margin-top: 10px;
+      position: relative;
+    }
+    pre .comment { color: #6a9fb5; font-style: italic; }
+    pre .cmd     { color: #79c0ff; }
+    pre .var     { color: #ffb347; }
+    code {
+      background: #e8edf2;
+      color: var(--navy);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: .85em;
+    }
+
+    /* ── Step list ── */
+    .steps { counter-reset: step; list-style: none; }
+    .steps li {
+      counter-increment: step;
+      position: relative;
+      padding: 0 0 20px 48px;
+    }
+    .steps li::before {
+      content: counter(step);
+      position: absolute;
+      left: 0; top: 0;
+      width: 28px; height: 28px;
+      background: var(--navy);
+      color: #fff;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: .8rem; font-weight: 700;
+    }
+    .steps li:last-child { padding-bottom: 0; }
+    .steps li strong { display: block; margin-bottom: 6px; font-size: .95rem; }
+
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 16px; }
+    @media(max-width: 768px) {
+      .grid-2, .grid-4 { grid-template-columns: 1fr; }
+      header { padding: 32px 20px; }
+      nav { padding: 0 16px; }
+      .container { padding: 24px 16px; }
+    }
+
+    /* ── VM Boxes ── */
+    .vm-box {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .vm-box .vm-header {
+      padding: 12px 16px;
+      font-weight: 700;
+      font-size: .9rem;
+      color: #fff;
+    }
+    .vm-box.vm1 .vm-header { background: var(--green); }
+    .vm-box.vm2 .vm-header { background: var(--blue); }
+    .vm-box.vm3 .vm-header { background: #7d3c98; }
+    .vm-box.vm4 .vm-header { background: #a04000; }
+    .vm-box .vm-body { padding: 12px 16px; }
+    .vm-box .vm-body ul { list-style: none; }
+    .vm-box .vm-body li {
+      font-size: .82rem;
+      padding: 4px 0;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .vm-box .vm-body li:last-child { border-bottom: none; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot.green  { background: var(--green); }
+    .dot.blue   { background: var(--blue); }
+    .dot.purple { background: #7d3c98; }
+    .dot.orange { background: #e67e22; }
+
+    /* ── Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .85rem;
+      background: var(--card);
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    th {
+      background: var(--navy);
+      color: #fff;
+      padding: 10px 14px;
+      text-align: left;
+      font-size: .78rem;
+      font-weight: 600;
+      letter-spacing: .5px;
+      text-transform: uppercase;
+    }
+    td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .check  { color: var(--green); font-weight: 700; }
+    .cross  { color: var(--red);   font-weight: 700; }
+
+    /* ── Alert boxes ── */
+    .alert {
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: .85rem;
+      margin: 12px 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+    .alert.info    { background: #e8f4fd; border-left: 4px solid var(--blue);  color: #154360; }
+    .alert.warning { background: #fef9e7; border-left: 4px solid var(--gold);  color: #7d6608; }
+    .alert.success { background: #e9f7ef; border-left: 4px solid var(--green); color: #1e5631; }
+    .alert.danger  { background: #fdedec; border-left: 4px solid var(--red);   color: #7b241c; }
+
+    /* ── Port table colours ── */
+    .port-public  { color: var(--green);  font-weight: 600; }
+    .port-private { color: var(--blue);   font-weight: 600; }
+
+    /* ── Redundancy diagram ── */
+    .arch-diagram {
+      background: var(--code-bg);
+      border-radius: 10px;
+      padding: 24px;
+      font-family: 'Courier New', monospace;
+      font-size: .8rem;
+      color: #e8f0fe;
+      line-height: 1.8;
+      overflow-x: auto;
+    }
+    .arch-diagram .hl  { color: #79c0ff; font-weight: 700; }
+    .arch-diagram .ok  { color: #56d364; }
+    .arch-diagram .dim { color: #6a9fb5; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="badge">Production Deployment</div>
+  <h1>SME Certificate Trust Platform</h1>
+  <p>Complete step-by-step guide — from OCI VM creation to a fully running, redundant 4-node Hyperledger Fabric deployment.</p>
+</header>
+
+<nav>
+  <a href="#architecture">Architecture</a>
+  <a href="#oci-setup">OCI Setup</a>
+  <a href="#bootstrap">Bootstrap All VMs</a>
+  <a href="#vm1-setup">VM1 Setup</a>
+  <a href="#distribute">Distribute Crypto</a>
+  <a href="#fabric-env">Fabric .env</a>
+  <a href="#start-fabric">Start Fabric</a>
+  <a href="#channel">Channel & Chaincode</a>
+  <a href="#app-stack">App Stack</a>
+  <a href="#redundancy">Redundancy</a>
+  <a href="#verify">Verify</a>
+</nav>
+
+<div class="container">
+
+  <!-- ══════════════════════════════════════════════════════ ARCHITECTURE -->
+  <section id="architecture">
+    <div class="section-header">
+      <div class="section-number">0</div>
+      <div>
+        <h2>Architecture Overview</h2>
+        <div class="subtitle">What runs on each VM</div>
+      </div>
+    </div>
+
+    <div class="grid-4" style="margin-bottom:20px;">
+      <div class="vm-box vm1">
+        <div class="vm-header">VM1 — Org1 + App Stack</div>
+        <div class="vm-body">
+          <ul>
+            <li><span class="dot green"></span>Orderer 1 (Raft)</li>
+            <li><span class="dot green"></span>peer0 + peer1 Org1</li>
+            <li><span class="dot green"></span>CouchDB x2</li>
+            <li><span class="dot green"></span>API (NestJS)</li>
+            <li><span class="dot green"></span>Web (React)</li>
+            <li><span class="dot green"></span>PostgreSQL</li>
+            <li><span class="dot green"></span>IPFS</li>
+            <li><span class="dot green"></span>Nginx</li>
+            <li><span class="dot green"></span>Grafana + Prometheus</li>
+          </ul>
+        </div>
+      </div>
+      <div class="vm-box vm2">
+        <div class="vm-header">VM2 — Org2</div>
+        <div class="vm-body">
+          <ul>
+            <li><span class="dot blue"></span>Orderer 2 (Raft)</li>
+            <li><span class="dot blue"></span>peer0 + peer1 Org2</li>
+            <li><span class="dot blue"></span>CouchDB x2</li>
+            <li><span class="dot blue"></span>API replica (redundancy)</li>
+            <li><span class="dot blue"></span>Postgres replica</li>
+            <li><span class="dot blue"></span>Nginx (redundancy)</li>
+          </ul>
+        </div>
+      </div>
+      <div class="vm-box vm3">
+        <div class="vm-header">VM3 — Org3</div>
+        <div class="vm-body">
+          <ul>
+            <li><span class="dot purple"></span>Orderer 3 (Raft)</li>
+            <li><span class="dot purple"></span>peer0 + peer1 Org3</li>
+            <li><span class="dot purple"></span>CouchDB x2</li>
+          </ul>
+        </div>
+      </div>
+      <div class="vm-box vm4">
+        <div class="vm-header">VM4 — Org4</div>
+        <div class="vm-body">
+          <ul>
+            <li><span class="dot orange"></span>peer0 + peer1 Org4</li>
+            <li><span class="dot orange"></span>CouchDB x2</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-diagram">
+<span class="dim">                    ┌─────────────────────────────────┐</span>
+<span class="dim">                    │       OCI Load Balancer          │</span>
+<span class="dim">                    │   (routes :80 to VM1 or VM2)     │</span>
+<span class="dim">                    └──────────┬──────────┬──────────────┘</span>
+<span class="dim">                               │          │</span>
+<span class="hl">              ┌────────────────▼──┐    ┌───▼────────────────┐</span>
+<span class="hl">              │  VM1 (Primary)    │    │  VM2 (Standby)     │</span>
+<span class="ok">              │  Nginx → API      │    │  Nginx → API       │</span>
+<span class="ok">              │  PostgreSQL (rw)  │◄──►│  PostgreSQL (ro)   │</span>
+<span class="ok">              │  Orderer1 Org1    │    │  Orderer2 Org2     │</span>
+<span class="hl">              └────────┬──────────┘    └────────────────────┘</span>
+<span class="dim">                       │  Raft consensus</span>
+<span class="dim">                       ▼</span>
+<span class="hl">              ┌────────────────────────────────────────────┐</span>
+<span class="hl">              │          Hyperledger Fabric Network        │</span>
+<span class="ok">              │   Orderer1(VM1) Orderer2(VM2) Orderer3(VM3)│</span>
+<span class="ok">              │   Org1(VM1)  Org2(VM2)  Org3(VM3) Org4(VM4)│</span>
+<span class="hl">              └────────────────────────────────────────────┘</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ OCI SETUP -->
+  <section id="oci-setup">
+    <div class="section-header">
+      <div class="section-number">1</div>
+      <div>
+        <h2>OCI — Create 4 Virtual Machines</h2>
+        <div class="subtitle">Compute → Instances → Create Instance</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>VM Specifications <span class="tag all">All 4 VMs</span></h3>
+      <table>
+        <thead><tr><th>Setting</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Image</td><td>Oracle Linux 8</td></tr>
+          <tr><td>Shape</td><td>VM.Standard.E4.Flex — 2 OCPU, 16 GB RAM (minimum)</td></tr>
+          <tr><td>Networking</td><td>Same VCN and subnet for all 4 VMs</td></tr>
+          <tr><td>Public IP</td><td>Enabled on all VMs</td></tr>
+          <tr><td>SSH Key</td><td>Add your public key</td></tr>
+        </tbody>
+      </table>
+      <div class="alert info" style="margin-top:12px;">
+        <span class="alert-icon">i</span>
+        <span>Name them clearly: <code>vm1-org1-app</code>, <code>vm2-org2</code>, <code>vm3-org3</code>, <code>vm4-org4</code></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>OCI Security List — Ingress Rules <span class="tag warn">Required</span></h3>
+      <p style="font-size:.85rem;color:var(--muted);margin-bottom:12px;">
+        Networking → Virtual Cloud Networks → your VCN → Security Lists → Default Security List → Add Ingress Rules
+      </p>
+      <table>
+        <thead><tr><th>Source CIDR</th><th>Protocol</th><th>Port(s)</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td>0.0.0.0/0</td><td>TCP</td><td class="port-public">80</td><td>Web UI (public)</td></tr>
+          <tr><td>0.0.0.0/0</td><td>TCP</td><td class="port-public">443</td><td>HTTPS (public)</td></tr>
+          <tr><td>0.0.0.0/0</td><td>TCP</td><td class="port-public">3000</td><td>API direct access (public)</td></tr>
+          <tr><td>10.0.0.0/16</td><td>TCP</td><td class="port-private">7050–7053</td><td>Orderer 1 (inter-VM)</td></tr>
+          <tr><td>10.0.0.0/16</td><td>TCP</td><td class="port-private">8050–8053</td><td>Orderer 2 (inter-VM)</td></tr>
+          <tr><td>10.0.0.0/16</td><td>TCP</td><td class="port-private">9050–9053</td><td>Orderer 3 (inter-VM)</td></tr>
+          <tr><td>10.0.0.0/16</td><td>TCP</td><td class="port-private">7051, 8051</td><td>Org1 peers (inter-VM)</td></tr>
+          <tr><td>10.0.0.0/16</td><td>TCP</td><td class="port-private">9051, 10051, 11051, 13051</td><td>Org2–4 peers (inter-VM)</td></tr>
+          <tr><td>10.0.0.0/16</td><td>TCP</td><td class="port-private">5432</td><td>PostgreSQL replication (inter-VM)</td></tr>
+        </tbody>
+      </table>
+      <div class="alert warning" style="margin-top:12px;">
+        <span class="alert-icon">!</span>
+        <span>Replace <code>10.0.0.0/16</code> with your actual VCN CIDR. Use <strong>private IPs</strong> for inter-VM Fabric ports, not public IPs.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ BOOTSTRAP -->
+  <section id="bootstrap">
+    <div class="section-header">
+      <div class="section-number">2</div>
+      <div>
+        <h2>Bootstrap — Run on ALL 4 VMs</h2>
+        <div class="subtitle">SSH into each VM as <code>opc</code> and run every block below</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>2.1 — Copy project files <span class="tag warn">From local machine</span></h3>
+<pre><span class="comment"># Run this on your LOCAL machine, not on the VM</span>
+<span class="var">VM1</span>=&lt;vm1-public-ip&gt;
+<span class="var">VM2</span>=&lt;vm2-public-ip&gt;
+<span class="var">VM3</span>=&lt;vm3-public-ip&gt;
+<span class="var">VM4</span>=&lt;vm4-public-ip&gt;
+
+for IP in $VM1 $VM2 $VM3 $VM4; do
+  scp -r /path/to/bc_application opc@$IP:~/bc_application
+done</pre>
+    </div>
+
+    <div class="card">
+      <h3>2.2 — Install Docker <span class="tag all">All VMs</span></h3>
+<pre>sudo dnf install -y dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker opc
+newgrp docker
+docker --version</pre>
+    </div>
+
+    <div class="card">
+      <h3>2.3 — Install Node.js 20 + Yarn <span class="tag all">All VMs</span></h3>
+<pre>curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+sudo npm install -g corepack
+sudo corepack enable                         <span class="comment"># must be sudo</span>
+sudo corepack prepare yarn@4.0.2 --activate
+node -v && yarn -v</pre>
+    </div>
+
+    <div class="card">
+      <h3>2.4 — Install Hyperledger Fabric 2.5 binaries <span class="tag all">All VMs</span></h3>
+<pre>cd /tmp
+<span class="var">FABRIC_VERSION</span>=2.5.9
+<span class="var">CA_VERSION</span>=1.5.9
+
+wget -q "https://github.com/hyperledger/fabric/releases/download/v${FABRIC_VERSION}/hyperledger-fabric-linux-amd64-${FABRIC_VERSION}.tar.gz"
+wget -q "https://github.com/hyperledger/fabric-ca/releases/download/v${CA_VERSION}/hyperledger-fabric-ca-linux-amd64-${CA_VERSION}.tar.gz"
+
+tar xzf hyperledger-fabric-linux-amd64-${FABRIC_VERSION}.tar.gz
+tar xzf hyperledger-fabric-ca-linux-amd64-${CA_VERSION}.tar.gz
+
+sudo cp /tmp/bin/* /usr/local/bin/
+sudo chmod +x /usr/local/bin/peer /usr/local/bin/orderer \
+  /usr/local/bin/configtxgen /usr/local/bin/cryptogen \
+  /usr/local/bin/fabric-ca-client
+
+<span class="comment"># Verify</span>
+peer version && cryptogen version && configtxgen --version</pre>
+    </div>
+
+    <div class="card">
+      <h3>2.5 — Pull Fabric Docker images <span class="tag all">All VMs</span></h3>
+<pre>docker pull hyperledger/fabric-peer:2.5
+docker pull hyperledger/fabric-orderer:2.5
+docker pull hyperledger/fabric-tools:2.5
+docker pull hyperledger/fabric-ccenv:2.5
+docker pull hyperledger/fabric-baseos:2.5
+docker pull hyperledger/fabric-nodeenv:2.5
+docker pull couchdb:3.3</pre>
+    </div>
+
+    <div class="card">
+      <h3>2.6 — Configure OS firewall <span class="tag all">All VMs</span></h3>
+<pre>sudo firewall-cmd --permanent --add-port=80/tcp
+sudo firewall-cmd --permanent --add-port=443/tcp
+sudo firewall-cmd --permanent --add-port=3000/tcp
+sudo firewall-cmd --permanent --add-port=7050-7053/tcp
+sudo firewall-cmd --permanent --add-port=8050-8053/tcp
+sudo firewall-cmd --permanent --add-port=9050-9053/tcp
+sudo firewall-cmd --permanent --add-port=7051/tcp
+sudo firewall-cmd --permanent --add-port=8051/tcp
+sudo firewall-cmd --permanent --add-port=9051/tcp
+sudo firewall-cmd --permanent --add-port=10051/tcp
+sudo firewall-cmd --permanent --add-port=11051/tcp
+sudo firewall-cmd --permanent --add-port=13051/tcp
+sudo firewall-cmd --reload</pre>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ VM1 SETUP -->
+  <section id="vm1-setup">
+    <div class="section-header">
+      <div class="section-number">3</div>
+      <div>
+        <h2>VM1 Only — Generate Crypto &amp; Secrets</h2>
+        <div class="subtitle">This is the primary node — do all of this only on VM1</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>3.1 — Generate crypto material &amp; channel artifacts <span class="tag vm1">VM1 only</span></h3>
+<pre>cd ~/bc_application/blockchain/network
+chmod +x scripts/*.sh
+
+<span class="comment"># Generate certificates for all 4 orgs</span>
+./scripts/generate_crypto.sh
+
+<span class="comment"># Generate channel genesis block</span>
+./scripts/generate_artifacts.sh
+
+<span class="comment"># Verify</span>
+ls crypto-config/peerOrganizations/   <span class="comment"># should show 4 org folders</span>
+ls channel-artifacts/                  <span class="comment"># should show certificates.block</span></pre>
+    </div>
+
+    <div class="card">
+      <h3>3.2 — Generate TLS certificate for Nginx <span class="tag vm1">VM1 only</span></h3>
+<pre>mkdir -p ~/bc_application/infra/nginx/tls
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout ~/bc_application/infra/nginx/tls/server.key \
+  -out  ~/bc_application/infra/nginx/tls/server.crt \
+  -subj "/C=EG/ST=Cairo/L=Cairo/O=SME Platform/CN=$(curl -s ifconfig.me)"</pre>
+    </div>
+
+    <div class="card">
+      <h3>3.3 — Generate production secrets &amp; update .env <span class="tag vm1">VM1 only</span></h3>
+<pre>cd ~/bc_application/infra/compose
+<span class="var">VM_IP</span>=$(curl -s ifconfig.me)
+
+<span class="comment"># Generate random secrets</span>
+<span class="var">JWT</span>=$(openssl rand -base64 48)
+<span class="var">MKEY</span>=$(openssl rand -hex 32)
+<span class="var">PG</span>=$(openssl rand -base64 18 | tr -dc 'a-zA-Z0-9' | head -c 20)
+<span class="var">GF</span>=$(openssl rand -base64 12)
+
+<span class="comment"># Inject into .env</span>
+sed -i "s|sme-cert-jwt-secret-change-in-production-2024|$JWT|" .env
+sed -i "s|0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef|$MKEY|" .env
+sed -i "s|POSTGRES_PASSWORD=smepassword|POSTGRES_PASSWORD=$PG|" .env
+sed -i "s|changeme_grafana|$GF|" .env
+sed -i "s|CORS_ORIGIN=.*|CORS_ORIGIN=http://$VM_IP|" .env
+sed -i "s|APP_URL=.*|APP_URL=http://$VM_IP|" .env
+sed -i "s|SWAGGER_ENABLED=true|SWAGGER_ENABLED=false|" .env
+
+<span class="comment"># Remove empty SMTP lines (causes validation error if blank)</span>
+sed -i '/^SMTP_HOST=/d; /^SMTP_PORT=/d; /^SMTP_USER=/d; /^SMTP_PASS=/d' .env
+
+<span class="comment"># Add SMTP placeholder (replace with real credentials later)</span>
+cat &gt;&gt; .env &lt;&lt; 'EOF'
+SMTP_HOST=localhost
+SMTP_PORT=25
+SMTP_USER=noreply@localhost
+SMTP_PASS=disabled
+EOF
+
+<span class="comment"># Confirm</span>
+grep -E "POSTGRES_PASSWORD|CORS_ORIGIN|APP_URL|SWAGGER|JWT_SECRET" .env
+echo "VM1 public IP: $VM_IP"</pre>
+      <div class="alert warning">
+        <span class="alert-icon">!</span>
+        <span>Save the generated <code>POSTGRES_PASSWORD</code> value — you will need it when setting up the PostgreSQL replica on VM2.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ DISTRIBUTE -->
+  <section id="distribute">
+    <div class="section-header">
+      <div class="section-number">4</div>
+      <div>
+        <h2>Distribute Crypto Material</h2>
+        <div class="subtitle">Run from VM1 — all VMs must have identical crypto-config and channel-artifacts</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>4.1 — Copy from VM1 to VM2, VM3, VM4 <span class="tag vm1">Run on VM1</span></h3>
+<pre><span class="var">VM2</span>=&lt;vm2-public-ip&gt;
+<span class="var">VM3</span>=&lt;vm3-public-ip&gt;
+<span class="var">VM4</span>=&lt;vm4-public-ip&gt;
+
+for VM in $VM2 $VM3 $VM4; do
+  echo "Copying to $VM..."
+  scp -r ~/bc_application/blockchain/network/crypto-config \
+    opc@$VM:~/bc_application/blockchain/network/
+  scp -r ~/bc_application/blockchain/network/channel-artifacts \
+    opc@$VM:~/bc_application/blockchain/network/
+done
+
+echo "Done. Verify on each VM:"
+echo "  ls ~/bc_application/blockchain/network/crypto-config/peerOrganizations/"</pre>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ FABRIC ENV -->
+  <section id="fabric-env">
+    <div class="section-header">
+      <div class="section-number">5</div>
+      <div>
+        <h2>Create Fabric .env on ALL 4 VMs</h2>
+        <div class="subtitle">Each VM needs to know the IPs of all other VMs for peer gossip and orderer clustering</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>5.1 — Create blockchain/network/docker/.env <span class="tag all">All VMs</span></h3>
+<pre><span class="comment"># Run on EACH VM — substitute the real public IPs</span>
+cat &gt; ~/bc_application/blockchain/network/docker/.env &lt;&lt; EOF
+VM1_IP=&lt;vm1-public-ip&gt;
+VM2_IP=&lt;vm2-public-ip&gt;
+VM3_IP=&lt;vm3-public-ip&gt;
+VM4_IP=&lt;vm4-public-ip&gt;
+EOF
+
+cat ~/bc_application/blockchain/network/docker/.env  <span class="comment"># verify</span></pre>
+      <div class="alert info">
+        <span class="alert-icon">i</span>
+        <span>Use <strong>private IPs</strong> if all VMs are in the same OCI VCN — this avoids egress charges and is faster. Use public IPs only if VMs are in different networks.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ START FABRIC -->
+  <section id="start-fabric">
+    <div class="section-header">
+      <div class="section-number">6</div>
+      <div>
+        <h2>Start Fabric Network (in order)</h2>
+        <div class="subtitle">Start VM1 first, then VM2, VM3, VM4. Wait for each to come up before the next.</div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <h3>VM1 — Org1 + Orderer1</h3>
+<pre>cd ~/bc_application/blockchain/network/docker
+docker compose -f docker-compose-vm1.yaml up -d
+sleep 20
+docker ps --format "table {{.Names}}\t{{.Status}}"</pre>
+        <div class="alert success" style="margin-top:10px;">
+          <span class="alert-icon">✓</span>
+          <span>Expect: orderer, peer0.org1, peer1.org1, couchdb0.org1, couchdb1.org1, cli — all <strong>Up</strong></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>VM2 — Org2 + Orderer2</h3>
+<pre>cd ~/bc_application/blockchain/network/docker
+docker compose -f docker-compose-vm2.yaml up -d
+sleep 20
+docker ps --format "table {{.Names}}\t{{.Status}}"</pre>
+        <div class="alert success" style="margin-top:10px;">
+          <span class="alert-icon">✓</span>
+          <span>Expect: orderer2, peer0.org2, peer1.org2, couchdb0.org2, couchdb1.org2 — all <strong>Up</strong></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>VM3 — Org3 + Orderer3</h3>
+<pre>cd ~/bc_application/blockchain/network/docker
+docker compose -f docker-compose-vm3.yaml up -d</pre>
+      </div>
+
+      <div class="card">
+        <h3>VM4 — Org4</h3>
+<pre>cd ~/bc_application/blockchain/network/docker
+docker compose -f docker-compose-vm4.yaml up -d</pre>
+      </div>
+    </div>
+
+    <div class="alert warning" style="margin-top:8px;">
+      <span class="alert-icon">!</span>
+      <span>After starting all 4 VMs, wait <strong>30 seconds</strong> for Raft leader election before proceeding to channel creation.</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ CHANNEL -->
+  <section id="channel">
+    <div class="section-header">
+      <div class="section-number">7</div>
+      <div>
+        <h2>Channel, Chaincode &amp; Wallets</h2>
+        <div class="subtitle">Run entirely on VM1 — the CLI container connects to all peers across all VMs</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>7.1 — Create channel and join all peers <span class="tag vm1">VM1 only</span></h3>
+<pre>cd ~/bc_application/blockchain/network
+./scripts/create_channel.sh</pre>
+      <div class="alert info" style="margin-top:10px;">
+        <span class="alert-icon">i</span>
+        <span>"cannot join: channel already exists" and "ledger already exists" messages are <strong>not errors</strong> — they mean the step was already done in a previous run.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>7.2 — Deploy chaincode <span class="tag vm1">VM1 only</span></h3>
+<pre>./scripts/deploy_chaincode.sh</pre>
+      <div class="alert warning" style="margin-top:10px;">
+        <span class="alert-icon">!</span>
+        <span>If you see <code>No such image: hyperledger/fabric-ccenv:2.5</code>, run:
+          <code>docker pull hyperledger/fabric-ccenv:2.5 &amp;&amp; docker pull hyperledger/fabric-baseos:2.5</code> then retry.</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>7.3 — Generate connection profiles &amp; enroll admin <span class="tag vm1">VM1 only</span></h3>
+<pre>./scripts/generate_connection_profiles.sh
+./scripts/enroll_admin.sh
+
+<span class="comment"># Verify wallet was created</span>
+ls ~/bc_application/wallets/org1/   <span class="comment"># should show admin.id</span></pre>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ APP STACK -->
+  <section id="app-stack">
+    <div class="section-header">
+      <div class="section-number">8</div>
+      <div>
+        <h2>Start Application Stack</h2>
+        <div class="subtitle">VM1 only — API, Web, Postgres, IPFS, Nginx, Grafana, Prometheus</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>8.1 — Start all services <span class="tag vm1">VM1 only</span></h3>
+<pre>cd ~/bc_application/infra/compose
+docker compose up -d
+sleep 20
+docker compose ps</pre>
+    </div>
+
+    <div class="card">
+      <h3>8.2 — Run database migrations <span class="tag vm1">VM1 only</span></h3>
+<pre>docker exec sme-cert-api npx prisma migrate deploy</pre>
+      <div class="alert danger" style="margin-top:10px;">
+        <span class="alert-icon">!</span>
+        <span>If the API container is not running, check logs first: <code>docker logs sme-cert-api</code></span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Common API startup errors &amp; fixes</h3>
+      <table>
+        <thead><tr><th>Error</th><th>Cause</th><th>Fix</th></tr></thead>
+        <tbody>
+          <tr>
+            <td><code>SMTP_PASS is not allowed to be empty</code></td>
+            <td>Empty string passed for SMTP vars</td>
+            <td>Remove all SMTP_ lines from .env and add placeholder values</td>
+          </tr>
+          <tr>
+            <td><code>SMTP_HOST is not allowed to be empty</code></td>
+            <td>Same — empty string vs missing</td>
+            <td><code>sed -i '/^SMTP_HOST=/d; /^SMTP_PORT=/d; /^SMTP_USER=/d; /^SMTP_PASS=/d' .env</code> then add placeholders</td>
+          </tr>
+          <tr>
+            <td><code>container is not running</code></td>
+            <td>API crashed on startup</td>
+            <td>Run <code>docker logs sme-cert-api</code> to see the actual error</td>
+          </tr>
+          <tr>
+            <td><code>fabric_network was not created for project</code></td>
+            <td>Warning — not an error</td>
+            <td>Safe to ignore. Fabric network is managed by the Fabric compose file.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ REDUNDANCY -->
+  <section id="redundancy">
+    <div class="section-header">
+      <div class="section-number">9</div>
+      <div>
+        <h2>Redundancy — App Layer on VM2</h2>
+        <div class="subtitle">Makes the platform survive VM1 app failures. Fabric layer is already redundant.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>What is already redundant (Fabric layer)</h3>
+      <table>
+        <thead><tr><th>Component</th><th>Count</th><th>Can lose</th></tr></thead>
+        <tbody>
+          <tr><td>Raft Orderers</td><td>3</td><td>1 of 3 — consensus continues</td></tr>
+          <tr><td>Peers per org</td><td>2</td><td>1 per org — endorsement continues</td></tr>
+          <tr><td>Ledger copies</td><td>8 (one per peer)</td><td>Any peers</td></tr>
+          <tr><td>CouchDB instances</td><td>8</td><td>Any — tied to peer</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>9.1 — Sync wallets to VM2 <span class="tag vm1">Run on VM1</span></h3>
+<pre><span class="comment"># One-time initial copy</span>
+scp -r ~/bc_application/wallets/ opc@&lt;VM2_IP&gt;:~/bc_application/wallets/
+scp -r ~/bc_application/blockchain/network/connection-profiles/ \
+  opc@&lt;VM2_IP&gt;:~/bc_application/blockchain/network/connection-profiles/
+scp ~/bc_application/infra/nginx/tls/server.key \
+    ~/bc_application/infra/nginx/tls/server.crt \
+    opc@&lt;VM2_IP&gt;:~/bc_application/infra/nginx/tls/
+
+<span class="comment"># Auto-sync every 5 minutes via cron</span>
+(crontab -l 2>/dev/null; echo "*/5 * * * * rsync -avz ~/bc_application/wallets/ opc@&lt;VM2_IP&gt;:~/bc_application/wallets/ &gt;&gt; /tmp/wallet-sync.log 2&gt;&amp;1") | crontab -</pre>
+    </div>
+
+    <div class="card">
+      <h3>9.2 — Copy .env to VM2 and update its IP <span class="tag vm1">Run on VM1</span></h3>
+<pre>scp ~/bc_application/infra/compose/.env opc@&lt;VM2_IP&gt;:~/bc_application/infra/compose/.env
+
+<span class="comment"># On VM2 — update CORS_ORIGIN and APP_URL to VM2's IP</span>
+ssh opc@&lt;VM2_IP&gt; "
+  VM2_IP=\$(curl -s ifconfig.me)
+  sed -i \"s|CORS_ORIGIN=.*|CORS_ORIGIN=http://\$VM2_IP|\" ~/bc_application/infra/compose/.env
+  sed -i \"s|APP_URL=.*|APP_URL=http://\$VM2_IP|\" ~/bc_application/infra/compose/.env
+"</pre>
+    </div>
+
+    <div class="card">
+      <h3>9.3 — Start app stack on VM2 <span class="tag all">Run on VM2</span></h3>
+<pre>cd ~/bc_application/infra/compose
+docker compose up -d api web nginx
+
+<span class="comment"># VM2 connects to the same Fabric network (peers on VM2 are already running)</span>
+<span class="comment"># It shares the same PostgreSQL via VM1's IP — or use a local replica (see 9.4)</span></pre>
+    </div>
+
+    <div class="card">
+      <h3>9.4 — OCI Load Balancer (routes traffic to VM1 or VM2)</h3>
+      <ol class="steps" style="margin-top:8px;">
+        <li><strong>Networking → Load Balancers → Create Load Balancer</strong><br>
+          Shape: Flexible, 10 Mbps minimum</li>
+        <li><strong>Listeners</strong>: HTTP on port 80</li>
+        <li><strong>Backend Set</strong>: Add VM1 and VM2 on port 80<br>
+          Health check: HTTP, path <code>/api/health</code>, port 3000</li>
+        <li><strong>Result</strong>: LB sends traffic to VM1. If VM1 health check fails, it automatically routes to VM2.</li>
+      </ol>
+      <div class="alert success" style="margin-top:12px;">
+        <span class="alert-icon">✓</span>
+        <span>Update your DNS record to point to the Load Balancer IP instead of VM1 directly.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ VERIFY -->
+  <section id="verify">
+    <div class="section-header">
+      <div class="section-number">10</div>
+      <div>
+        <h2>Verify Everything is Running</h2>
+        <div class="subtitle">Run on VM1 after all steps are complete</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>10.1 — Check all containers</h3>
+<pre>docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"</pre>
+      <p style="font-size:.85rem;color:var(--muted);margin-top:8px;">You should see 20 Fabric containers + 8 app containers = <strong>28 total</strong> all showing <code>Up</code>.</p>
+    </div>
+
+    <div class="card">
+      <h3>10.2 — Health checks</h3>
+<pre><span class="comment"># API health</span>
+curl http://localhost:3000/api/health
+
+<span class="comment"># Blockchain status</span>
+curl http://localhost:3000/api/health/blockchain
+
+<span class="comment"># Nginx is routing correctly</span>
+curl http://localhost/api/health</pre>
+    </div>
+
+    <div class="card">
+      <h3>10.3 — Access URLs</h3>
+<pre><span class="var">VM_IP</span>=$(curl -s ifconfig.me)
+echo "Web UI:      http://$VM_IP"
+echo "API:         http://$VM_IP/api"
+echo "API Docs:    http://$VM_IP/api/docs  (only if SWAGGER_ENABLED=true)"
+echo "Grafana:     http://$VM_IP:3001"
+echo "Prometheus:  http://$VM_IP:9090"</pre>
+    </div>
+
+    <div class="card">
+      <h3>10.4 — Useful log commands</h3>
+<pre><span class="comment"># API logs</span>
+docker logs -f sme-cert-api
+
+<span class="comment"># All app services</span>
+docker compose -f ~/bc_application/infra/compose/compose.yaml logs -f
+
+<span class="comment"># Fabric orderer</span>
+docker logs -f orderer.example.com
+
+<span class="comment"># Specific peer</span>
+docker logs -f peer0.org1.example.com
+
+<span class="comment"># DB migrations status</span>
+docker exec sme-cert-api npx prisma migrate status</pre>
+    </div>
+
+    <div class="card">
+      <h3>Failure scenario reference</h3>
+      <table>
+        <thead><tr><th>What fails</th><th>Impact</th><th>Recovery</th></tr></thead>
+        <tbody>
+          <tr><td>VM2, VM3, or VM4</td><td class="check">No user impact</td><td>Restart the VM and run <code>docker compose up -d</code></td></tr>
+          <tr><td>VM1 app crashes (API/Nginx)</td><td>~10s downtime</td><td>OCI LB auto-routes to VM2</td></tr>
+          <tr><td>VM1 completely dies</td><td>Users hit VM2</td><td>Promote VM2 Postgres: <code>pg_ctl promote</code></td></tr>
+          <tr><td>1 orderer fails</td><td class="check">No impact</td><td>Raft continues with 2/3 nodes</td></tr>
+          <tr><td>1 peer per org fails</td><td class="check">No impact</td><td>Other peer continues endorsing</td></tr>
+          <tr><td>All 3 orderers fail</td><td class="cross">Network halts</td><td>Restart all orderer VMs</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<footer style="background:var(--navy);color:rgba(255,255,255,.5);text-align:center;padding:24px;font-size:.8rem;">
+  SME Certificate Trust Platform &mdash; Deployment Guide &mdash; Generated 2026
+</footer>
+
+</body>
+</html>

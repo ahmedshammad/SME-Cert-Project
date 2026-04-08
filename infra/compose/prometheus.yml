@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: 'sme-cert-api'
+    metrics_path: '/api/metrics'
+    static_configs:
+      - targets: ['api:3000']
+        labels:
+          service: 'api'
+
+  - job_name: 'fabric-peers'
+    static_configs:
+      - targets:
+          - 'peer0.org1.example.com:9446'
+          - 'peer0.org2.example.com:9448'
+          - 'peer0.org3.example.com:9450'
+          - 'peer0.org4.example.com:9452'
+        labels:
+          service: 'fabric-peer'
+
+  - job_name: 'fabric-orderers'
+    scheme: https
+    tls_config:
+      insecure_skip_verify: true
+    static_configs:
+      - targets:
+          - 'orderer.example.com:9443'
+          - 'orderer2.example.com:9444'
+          - 'orderer3.example.com:9445'
+        labels:
+          service: 'fabric-orderer'
+
+  - job_name: 'otel-collector'
+    static_configs:
+      - targets: ['otel-collector:8889']
+        labels:
+          service: 'otel-collector'
