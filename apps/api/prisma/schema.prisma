@@ -1,0 +1,382 @@
+// SME Certificate Trust Platform - Prisma Schema
+// PostgreSQL database for application metadata, users, audit, and off-chain data
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// User and Organization Management
+// ============================================================================
+
+enum UserRole {
+  PLATFORM_ADMIN
+  CONSORTIUM_ADMIN
+  ISSUER_ADMIN
+  ISSUER_OPERATOR
+  SME_USER
+  VERIFIER_USER
+  AUDITOR_USER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  PENDING_VERIFICATION
+}
+
+model User {
+  id            String     @id @default(uuid())
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  firstName     String     @map("first_name")
+  lastName      String     @map("last_name")
+  role          UserRole
+  status        UserStatus @default(PENDING_VERIFICATION)
+  organizationId String?   @map("organization_id")
+  organization  Organization? @relation(fields: [organizationId], references: [id])
+  phoneNumber   String?    @map("phone_number")
+  locale        String     @default("en") // en or ar
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+  lastLoginAt   DateTime?  @map("last_login_at")
+  emailVerifiedAt DateTime? @map("email_verified_at")
+
+  // Relations
+  issuedCertificates   Certificate[]        @relation("IssuerUser")
+  auditLogs            AuditLog[]
+  accessGrants         AccessGrant[]
+  sessions             Session[]
+  passwordResetTokens  PasswordResetToken[]
+
+  @@map("users")
+}
+
+model Organization {
+  id              String   @id @default(uuid())
+  orgId           String   @unique @map("org_id") // Maps to blockchain org ID
+  name            String
+  nameAr          String?  @map("name_ar") // Arabic name
+  type            String   // GOVERNMENT, TRAINING_PROVIDER, AUDITOR, SME
+  mspId           String   @map("msp_id") // Fabric MSP ID
+  contactEmail    String   @map("contact_email")
+  contactPerson   String   @map("contact_person")
+  address         String?
+  city            String?
+  country         String   @default("Egypt")
+  active              Boolean  @default(true)
+  registrationStatus  String   @default("APPROVED") @map("registration_status") // PENDING, APPROVED, REJECTED
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  users           User[]
+  templates       Template[]
+  certificates    Certificate[]
+
+  @@map("organizations")
+}
+
+// ============================================================================
+// Session Management
+// ============================================================================
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  refreshToken String?  @map("refresh_token")
+  expiresAt    DateTime @map("expires_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  ipAddress    String?  @map("ip_address")
+  userAgent    String?  @map("user_agent")
+
+  @@map("sessions")
+}
+
+// ============================================================================
+// Certificate Templates
+// ============================================================================
+
+model Template {
+  id                  String   @id @default(uuid())
+  templateId          String   @map("template_id")
+  version             String
+  displayName         String   @map("display_name")
+  displayNameAr       String?  @map("display_name_ar")
+  description         String
+  descriptionAr       String?  @map("description_ar")
+  jsonSchema          Json     @map("json_schema")
+  uiSchema            Json     @map("ui_schema")
+  requiredClaims      String[] @map("required_claims")
+  issuerConstraints   String[] @map("issuer_constraints")
+  organizationId      String   @map("organization_id")
+  organization        Organization @relation(fields: [organizationId], references: [id])
+  category            String
+  validityDaysDefault Int      @map("validity_days_default") @default(365)
+  active              Boolean  @default(true)
+  publishedToChain    Boolean  @default(false) @map("published_to_chain")
+  createdAt           DateTime @default(now()) @map("created_at")
+  updatedAt           DateTime @updatedAt @map("updated_at")
+  createdBy           String   @map("created_by")
+
+  // Relations
+  certificates        Certificate[]
+
+  @@unique([templateId, version])
+  @@map("templates")
+}
+
+// ============================================================================
+// Certificates (Application Metadata)
+// ============================================================================
+
+enum CertificateStatus {
+  DRAFT
+  PENDING_SIGNATURE
+  ISSUED
+  REVOKED
+  EXPIRED
+}
+
+model Certificate {
+  id                 String            @id @default(uuid())
+  certId             String            @unique @map("cert_id") // Blockchain certificate ID
+  templateId         String            @map("template_id")
+  templateVersion    String            @map("template_version")
+  template           Template          @relation(fields: [templateId, templateVersion], references: [templateId, version])
+  organizationId     String            @map("organization_id")
+  organization       Organization      @relation(fields: [organizationId], references: [id])
+  issuerId           String            @map("issuer_id")
+  issuer             User              @relation("IssuerUser", fields: [issuerId], references: [id])
+  holderEmail        String            @map("holder_email")
+  holderName         String            @map("holder_name")
+  holderNameAr       String?           @map("holder_name_ar")
+  holderId           String            @map("holder_id") // Pseudonymous on-chain ID
+  claims             Json              // Certificate claims/data
+  certHash           String            @map("cert_hash") // SHA-256 hash
+  contentPointer     String            @map("content_pointer") // IPFS CID or object storage key
+  encryptedPayload   Bytes?            @map("encrypted_payload") // Optional local storage
+  encryptionKeyId    String?           @map("encryption_key_id")
+  status             CertificateStatus
+  issuedAt           DateTime?         @map("issued_at")
+  expiresAt          DateTime?         @map("expires_at")
+  revokedAt          DateTime?         @map("revoked_at")
+  revocationReason   String?           @map("revocation_reason")
+  qrCodeUrl          String?           @map("qr_code_url")
+  verificationUrl    String?           @map("verification_url")
+  txId               String?           @map("tx_id") // Blockchain transaction ID
+  blockNumber        String?           @map("block_number")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  updatedAt          DateTime          @updatedAt @map("updated_at")
+
+  // Relations
+  accessGrants       AccessGrant[]
+  verifications      Verification[]
+
+  @@index([holderEmail])
+  @@index([organizationId])
+  @@index([status])
+  @@index([issuedAt])
+  @@map("certificates")
+}
+
+// ============================================================================
+// Access Control and Sharing
+// ============================================================================
+
+enum AccessGrantStatus {
+  ACTIVE
+  EXPIRED
+  REVOKED
+}
+
+model AccessGrant {
+  id            String            @id @default(uuid())
+  certificateId String            @map("certificate_id")
+  certificate   Certificate       @relation(fields: [certificateId], references: [id], onDelete: Cascade)
+  grantedBy     String            @map("granted_by")
+  grantor       User              @relation(fields: [grantedBy], references: [id])
+  verifierEmail String?           @map("verifier_email")
+  scope         String[]          // METADATA_ONLY, FULL_CONTENT, ATTACHMENTS
+  token         String            @unique // Secure access token
+  pin           String?           // Optional PIN for extra security
+  status        AccessGrantStatus @default(ACTIVE)
+  expiresAt     DateTime          @map("expires_at")
+  createdAt     DateTime          @default(now()) @map("created_at")
+  usedAt        DateTime?         @map("used_at")
+  usageCount    Int               @default(0) @map("usage_count")
+  maxUsage      Int?              @map("max_usage")
+
+  @@map("access_grants")
+}
+
+// ============================================================================
+// Verification Records
+// ============================================================================
+
+enum VerificationStatus {
+  VALID
+  REVOKED
+  EXPIRED
+  INVALID_SIGNATURE
+  TAMPERED
+  UNKNOWN_ISSUER
+}
+
+model Verification {
+  id              String             @id @default(uuid())
+  certificateId   String             @map("certificate_id")
+  certificate     Certificate        @relation(fields: [certificateId], references: [id])
+  verifierEmail   String?            @map("verifier_email")
+  verifierIp      String?            @map("verifier_ip")
+  verifierOrg     String?            @map("verifier_org")
+  status          VerificationStatus
+  hashVerified    Boolean            @map("hash_verified")
+  signatureVerified Boolean          @map("signature_verified")
+  revocationChecked Boolean          @map("revocation_checked")
+  evidenceData    Json               @map("evidence_data") // Full verification evidence
+  verifiedAt      DateTime           @default(now()) @map("verified_at")
+
+  @@index([certificateId])
+  @@index([verifiedAt])
+  @@map("verifications")
+}
+
+// ============================================================================
+// Audit Logging
+// ============================================================================
+
+enum AuditAction {
+  USER_LOGIN
+  USER_LOGOUT
+  USER_CREATED
+  USER_UPDATED
+  USER_DELETED
+  TEMPLATE_CREATED
+  TEMPLATE_UPDATED
+  TEMPLATE_PUBLISHED
+  CERTIFICATE_DRAFTED
+  CERTIFICATE_ISSUED
+  CERTIFICATE_REVOKED
+  CERTIFICATE_VERIFIED
+  ACCESS_GRANT_CREATED
+  ACCESS_GRANT_REVOKED
+  ENCRYPTION_KEY_ROTATED
+  CONFIG_CHANGED
+  SECURITY_VIOLATION
+}
+
+model AuditLog {
+  id          String      @id @default(uuid())
+  action      AuditAction
+  userId      String?     @map("user_id")
+  user        User?       @relation(fields: [userId], references: [id])
+  resourceType String?    @map("resource_type")
+  resourceId  String?     @map("resource_id")
+  details     Json        // Structured details of the action
+  ipAddress   String?     @map("ip_address")
+  userAgent   String?     @map("user_agent")
+  success     Boolean     @default(true)
+  errorMessage String?    @map("error_message")
+  timestamp   DateTime    @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+// ============================================================================
+// System Configuration
+// ============================================================================
+
+model SystemConfig {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     Json
+  category  String   // SECURITY, BLOCKCHAIN, STORAGE, EMAIL, etc.
+  encrypted Boolean  @default(false)
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String   @map("updated_by")
+
+  @@map("system_config")
+}
+
+// ============================================================================
+// Encryption Key Management
+// ============================================================================
+
+model EncryptionKey {
+  id          String   @id @default(uuid())
+  keyId       String   @unique @map("key_id")
+  purpose     String   // CERTIFICATE_PAYLOAD, DATABASE_FIELD, etc.
+  algorithm   String   // AES-256-GCM, RSA-4096, etc.
+  encryptedKey Bytes   @map("encrypted_key") // Wrapped with master key
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  rotatedAt   DateTime? @map("rotated_at")
+  expiresAt   DateTime? @map("expires_at")
+
+  @@map("encryption_keys")
+}
+
+// ============================================================================
+// Metrics and Analytics
+// ============================================================================
+
+model DailyMetrics {
+  id                    String   @id @default(uuid())
+  date                  DateTime @unique @db.Date
+  certificatesIssued    Int      @default(0) @map("certificates_issued")
+  certificatesRevoked   Int      @default(0) @map("certificates_revoked")
+  verificationsPerformed Int     @default(0) @map("verifications_performed")
+  uniqueVerifiers       Int      @default(0) @map("unique_verifiers")
+  activeUsers           Int      @default(0) @map("active_users")
+  avgVerificationTimeMs Int      @default(0) @map("avg_verification_time_ms")
+
+  @@map("daily_metrics")
+}
+
+// ============================================================================
+// Contact Form Submissions
+// ============================================================================
+
+model ContactSubmission {
+  id           String   @id @default(uuid())
+  name         String
+  email        String
+  organization String?
+  interest     String?  // DEMO, PRICING, PARTNERSHIP, SUPPORT, OTHER
+  message      String   @db.Text
+  ipAddress    String?  @map("ip_address")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("contact_submissions")
+}
+
+// ============================================================================
+// Password Reset Tokens
+// ============================================================================
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique @map("token_hash") // SHA-256 of the raw token sent to user
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([tokenHash])
+  @@map("password_reset_tokens")
+}
